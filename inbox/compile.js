@@ -1,55 +1,51 @@
 const path = require("path");
 const solc = require("solc");
 const fs = require("fs-extra");
- 
-// get path to build folder
+
 const buildPath = path.resolve(__dirname, "build");
+const contractFileName = "Inbox.sol";
 
-// delete build folder
+// Delete the current build folder.
 fs.removeSync(buildPath);
- 
-// get path to Campaigns.sol
-const campaignPath = path.resolve(__dirname, "contracts", "Inbox.sol");
 
-// read campaign file
+const campaignPath = path.resolve(__dirname, "contracts", contractFileName);
 const source = fs.readFileSync(campaignPath, "utf8");
 
-// compile contracts and get contracts
-let input = {
+/***
+ * The recommended way to interface with the Solidity compiler, especially for more
+ * complex and automated setups is the so-called JSON-input-output interface.
+ *
+ * See https://docs.soliditylang.org/en/v0.8.6/using-the-compiler.html#compiler-input-and-output-json-description
+ * for more details.
+ */
+const input = {
   language: "Solidity",
-  sources: {
-    "Inbox.sol": {
-      content: source,
-    },
-  },
+  sources: {},
   settings: {
+    metadata: {
+      useLiteralContent: true,
+    },
     outputSelection: {
       "*": {
-        "*": ["abi", "evm.bytecode"],
+        "*": ["*"],
       },
     },
   },
 };
 
-//module.exports = solc.compile(JSON.stringify(input));
-module.exports = JSON.parse(solc.compile(JSON.stringify(input))).contracts["Inbox.sol"];
- 
-// // create build folder
-// fs.ensureDirSync(buildPath);
- 
-// // loop over output and write each contract to different file in build directory
-// if (output.errors) {
-//   output.errors.forEach((err) => {
-//     console.log(err.formattedMessage);
-//   });
-// } else {
-//   const contracts = output.contracts["Inbox.sol"];
-//   for (let contractName in contracts) {
-//     const contract = contracts[contractName];
-//     fs.writeFileSync(
-//       path.resolve(buildPath, `${contractName}.json`),
-//       JSON.stringify(contract.abi, null, 2),
-//       "utf8"
-//     );
-//   }
-// }
+input.sources[contractFileName] = {
+  content: source,
+};
+
+const output = JSON.parse(solc.compile(JSON.stringify(input)));
+const contracts = output.contracts[contractFileName];
+
+// Create the build folder.
+fs.ensureDirSync(buildPath);
+
+// Extract and write the JSON representations of the contracts to the build folder.
+for (let contract in contracts) {
+  if (contracts.hasOwnProperty(contract)) {
+    fs.outputJsonSync(path.resolve(buildPath, `${contract}.json`), contracts[contract]);
+  }
+}
